@@ -443,7 +443,7 @@
       function render(list){
         listEl.innerHTML='';
         if(!list.length){
-          const p = document.createElement('p'); p.className='muted'; p.style=textAlign='center'; p.style.marginTop='24px'; p.textContent='履歴はまだありません';
+          const p = document.createElement('p'); p.className='muted'; p.style.textAlign='center'; p.style.marginTop='24px'; p.textContent='履歴はまだありません';
           listEl.appendChild(p); return;
         }
         list.forEach(item=>{

@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'bookkeeping-calc-v1';
+const CACHE_NAME = 'bookkeeping-calc-v2';
 const ASSETS = [
   './',
   './index.html',

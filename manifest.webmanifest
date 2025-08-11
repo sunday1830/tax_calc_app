@@ -1,7 +1,8 @@
 {
   "name": "帳簿電卓",
   "short_name": "帳簿電卓",
-  "start_url": ".",
+  "start_url": "/tax_calc_app/?hs=i&v=20250811",
+  "scope": "/tax_calc_app/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",

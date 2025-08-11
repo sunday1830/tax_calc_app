@@ -20,16 +20,20 @@
     .card{background:var(--card);border-radius:14px;padding:12px;margin:8px 0}
     .row{display:flex;gap:8px}
     input,select,textarea{width:100%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px}
+    /* keypad */
     .keys .row{display:grid;grid-template-columns:repeat(5, 1fr);gap:8px}
     .keys .row button{min-width:0;height:56px;padding:10px;border-radius:12px;border:0;background:var(--key);color:var(--text);font-size:18px;font-weight:700;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .keys .row button.accent{background:var(--accent)}
     .keys .row button.danger{background:var(--danger)}
     .op{background:var(--keyAlt)!important}
     .placeholder{visibility:hidden}
+    /* tax buttons row */
     .rate-row{display:flex;gap:6px;margin-top:6px}
     .rate-row button{flex:1;padding:10px;border-radius:10px;border:0;background:var(--key);color:var(--text)}
+    /* memory buttons */
     .mem-row{display:flex;gap:6px;margin-top:6px}
     .mem-row button{flex:1;padding:10px;border:0;border-radius:10px;background:var(--key);color:var(--text)}
+    /* toolbar */
     .toolbar{display:flex;gap:8px}
     .toolbar button{flex:1;padding:12px;border:0;border-radius:10px;background:var(--accent);color:var(--text);font-weight:700}
     .danger-outline{background:transparent;border:1px solid var(--danger);color:#ef4444}
@@ -63,6 +67,13 @@
       <div id="preview">税抜: 0 / 税額: 0 / 税込: 0</div>
     </div>
 
+    <!-- 横長の保存ボタン（税ボタンの1行上） -->
+    <div class="row" style="margin-top:8px">
+      <button id="save" style="width:100%; padding:14px; border:0; border-radius:10px; font-weight:700; background:#10b981; color:#fff">
+        保存
+      </button>
+    </div>
+
     <div class="row">
       <input id="category" placeholder="科目（例：会議費・旅費交通費）" />
     </div>
@@ -75,7 +86,7 @@
       <button id="mc">MC</button><button id="mr">MR</button><button id="mplus">M+</button><button id="mminus">M-</button>
     </div>
 
-    <!-- Keypad layout -->
+    <!-- Keypad layout（％はACの真下、保存は外に移動済み） -->
     <div class="keys">
       <div class="row">
         <button data-k="7">7</button>
@@ -96,7 +107,7 @@
         <button data-k="2">2</button>
         <button data-k="3">3</button>
         <button class="op" data-op="-">−</button>
-        <button id="save">保存</button>
+        <button id="percent">％</button> <!-- ACの真下 -->
       </div>
       <div class="row">
         <button data-k="0">0</button>
@@ -104,14 +115,6 @@
         <button data-k=".">.</button>
         <button class="op" data-op="+">＋</button>
         <button class="accent" id="eq">＝</button>
-      </div>
-      <!-- 5行目：％ボタン（均一レイアウト維持のためプレースホルダ使用） -->
-      <div class="row">
-        <button class="placeholder"> </button>
-        <button class="placeholder"> </button>
-        <button id="percent">％</button>
-        <button class="placeholder"> </button>
-        <button class="placeholder"> </button>
       </div>
     </div>
     <div class="footer"></div>
@@ -155,8 +158,8 @@
       get(k, d){ try { const v = localStorage.getItem(k); return v? JSON.parse(v): d; } catch(e){ return d; } },
       set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
     };
-    const SETTINGS_KEY='_settings_v1';
-    const HISTORY_KEY='_history_v1';
+    const SETTINGS_KEY='bk_settings_v1';
+    const HISTORY_KEY='bk_history_v1';
 
     // ---- State ----
     let display='0', memory=0;
@@ -420,17 +423,10 @@
     // ---- History / CSV ----
     (function(){
       const listEl = document.getElementById('historyList');
-      function formatNumber(n){
-        if(n=== '' || n=== null || n=== undefined || isNaN(Number(n))) return '0';
-        const s = String(n);
-        const [i,d] = s.split('.');
-        const ii = Number(i).toLocaleString('ja-JP');
-        return d ? `${ii}.${d}` : ii;
-      }
       function render(list){
         listEl.innerHTML='';
         if(!list.length){
-          const p = document.createElement('p'); p.className='muted'; p.style.textAlign='center'; p.style.marginTop='24px'; p.textContent='履歴はまだありません';
+          const p = document.createElement('p'); p.className='muted'; p.style=textAlign='center'; p.style.marginTop='24px'; p.textContent='履歴はまだありません';
           listEl.appendChild(p); return;
         }
         list.forEach(item=>{

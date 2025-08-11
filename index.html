@@ -1,0 +1,483 @@
+
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>帳簿電卓</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <style>
+    :root{
+      --bg:#0f172a; --card:#111827; --text:#e5e7eb; --sub:#9ca3af;
+      --key:#1f2937; --keyAlt:#374151; --accent:#10b981; --danger:#ef4444; --border:#1f2937;
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    body{margin:0;background:var(--bg);color:var(--text);}
+    header{display:flex}
+    header button{flex:1;padding:14px;border:0;background:transparent;color:var(--text);font-weight:600}
+    header button.active{background:var(--card);color:#22c55e}
+    .wrap{padding:12px}
+    .card{background:var(--card);border-radius:14px;padding:12px;margin:8px 0}
+    .row{display:flex;gap:8px}
+    input,select,textarea{width:100%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px}
+    .keys .row button{flex:1;margin:6px;padding:16px;border-radius:12px;border:0;background:var(--key);color:var(--text);font-size:18px;font-weight:700}
+    .keys .row button.accent{background:var(--accent)}
+    .keys .row button.danger{background:var(--danger)}
+    .op{background:var(--keyAlt)!important}
+    .rate-row{display:flex;gap:6px;margin-top:6px}
+    .rate-row button{flex:1;padding:10px;border-radius:10px;border:0;background:var(--key);color:var(--text)}
+    .mem-row{display:flex;gap:6px;margin-top:6px}
+    .mem-row button{flex:1;padding:10px;border:0;border-radius:10px;background:var(--key);color:var(--text)}
+    .toolbar{display:flex;gap:8px}
+    .toolbar button{flex:1;padding:12px;border:0;border-radius:10px;background:var(--accent);color:var(--text);font-weight:700}
+    .danger-outline{background:transparent;border:1px solid var(--danger);color:#ef4444}
+    .list-item{background:var(--card);padding:12px;border-radius:12px;margin:8px 0}
+    .muted{color:var(--sub);font-size:12px}
+    .expr{color:var(--sub);font-size:14px;min-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hidden{display:none}
+    .footer{height:40px}
+  </style>
+</head>
+<body>
+  <header>
+    <button id="tab-calc" class="active">電卓</button>
+    <button id="tab-history">履歴/CSV</button>
+    <button id="tab-settings">設定</button>
+  </header>
+
+  <main id="view-calc" class="wrap">
+    <div style="padding:6px 6px 0 6px">
+      <div id="expr" class="expr"></div>
+      <div class="muted">現在値</div>
+      <div id="display" style="font-size:36px;font-weight:800">0</div>
+    </div>
+
+    <div class="card">
+      <div class="muted">税計算プレビュー</div>
+      <div id="modeRateText" class="muted">モード: 未指定 / 税率: 10%</div>
+      <div id="preview">税抜: 0 / 税額: 0 / 税込: 0</div>
+    </div>
+
+    <div class="row">
+      <input id="category" placeholder="科目（例：会議費・旅費交通費）" />
+    </div>
+    <div class="row">
+      <input id="memo" placeholder="摘要（任意）" />
+    </div>
+
+    <div id="rateButtons" class="rate-row"></div>
+    <div class="mem-row">
+      <button id="mc">MC</button><button id="mr">MR</button><button id="mplus">M+</button><button id="mminus">M-</button>
+    </div>
+
+    <!-- Keypad layout -->
+    <div class="keys">
+      <div class="row">
+        <button data-k="7">7</button>
+        <button data-k="8">8</button>
+        <button data-k="9">9</button>
+        <button class="op" data-op="/">÷</button>
+        <button class="danger" id="c">C</button>
+      </div>
+      <div class="row">
+        <button data-k="4">4</button>
+        <button data-k="5">5</button>
+        <button data-k="6">6</button>
+        <button class="op" data-op="*">×</button>
+        <button class="danger" id="ac">AC</button>
+      </div>
+      <div class="row">
+        <button data-k="1">1</button>
+        <button data-k="2">2</button>
+        <button data-k="3">3</button>
+        <button class="op" data-op="-">−</button>
+        <button id="save">保存</button>
+      </div>
+      <div class="row">
+        <button data-k="0">0</button>
+        <button id="k00">00</button>
+        <button data-k=".">.</button>
+        <button class="op" data-op="+">＋</button>
+        <button class="accent" id="eq">＝</button>
+      </div>
+    </div>
+    <div class="footer"></div>
+  </main>
+
+  <main id="view-history" class="wrap hidden">
+    <div class="row"><input id="search" placeholder="検索（科目・メモ・金額）"/></div>
+    <div class="toolbar" style="margin:8px 0">
+      <button id="export">CSV出力</button>
+      <button id="clear" class="danger-outline">履歴全削除</button>
+    </div>
+    <div id="historyList"></div>
+  </main>
+
+  <main id="view-settings" class="wrap hidden">
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">税率</div>
+      <div id="ratesArea"></div>
+      <button id="addRate" style="margin-top:8px" class="danger-outline">税率を追加</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">端数処理</div>
+      <select id="rounding">
+        <option value="round">四捨五入</option>
+        <option value="ceil">切上げ</option>
+        <option value="floor">切捨て</option>
+      </select>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">通貨記号</div>
+      <input id="currency" value="¥" />
+    </div>
+    <div class="toolbar" style="margin-top:8px">
+      <button id="saveSettings">設定を保存</button>
+    </div>
+  </main>
+
+  <script>
+    // ---- Storage helpers ----
+    const LS = {
+      get(k, d){ try { const v = localStorage.getItem(k); return v? JSON.parse(v): d; } catch(e){ return d; } },
+      set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+    };
+    const SETTINGS_KEY='bk_settings_v1';
+    const HISTORY_KEY='bk_history_v1';
+
+    // ---- State ----
+    let display='0', memory=0;
+    let mode='NONE'; // NONE | INCLUSIVE_TO_EXCLUSIVE | EXCLUSIVE_TO_INCLUSIVE
+    let selectedRate=10;
+
+    // chain calc with immediate execution + repeat '='
+    let acc = null;            // number accumulator
+    let pendingOp = null;      // '+','-','*','/'
+    let inputBuf = '0';        // current typed number (string)
+    let lastPressWasOp = false;
+    let afterEquals = false;
+    let exprParts = [];        // e.g., ["7", "＋", "3", "×"]
+    let lastBinaryOp = null;   // for '=' repeat
+    let lastRightOperand = null;
+
+    let settings = LS.get(SETTINGS_KEY, { taxRates:[10,8], rounding:'round', currency:'¥' });
+    let history = LS.get(HISTORY_KEY, []);
+
+    // ---- Elements ----
+    const el = (id)=>document.getElementById(id);
+    const exprEl = el('expr');
+    const viewCalc = el('view-calc'); const viewHistory = el('view-history'); const viewSettings = el('view-settings');
+    const tabCalc = el('tab-calc'); const tabHistory = el('tab-history'); const tabSettings = el('tab-settings');
+    const disp = el('display'); const modeRateText = el('modeRateText'); const preview = el('preview');
+    const category = el('category'); const memo = el('memo');
+    const rateButtons = el('rateButtons');
+    const search = el('search'); const historyList = el('historyList');
+    const roundingSel = el('rounding'); const currencyInp = el('currency'); const ratesArea = el('ratesArea');
+
+    const sym = {'+':'＋','-':'−','*':'×','/':'÷'};
+
+    function formatNumber(n){
+      if(n=== '' || n=== null || n=== undefined || isNaN(Number(n))) return '0';
+      const s = String(n);
+      const [i,d] = s.split('.');
+      const ii = Number(i).toLocaleString('ja-JP');
+      return d ? `${ii}.${d}` : ii;
+    }
+
+    function updateExprLine(showEquals=false, result=null){
+      const parts = exprParts.slice();
+      if(!lastPressWasOp && inputBuf!=null) parts.push(inputBuf);
+      if(showEquals && result!=null) parts.push('=', result);
+      exprEl.textContent = parts.join(' ');
+    }
+
+    function applyOp(a,b,op){
+      a = Number(a); b = Number(b);
+      if(op==='+') return a + b;
+      if(op==='-') return a - b;
+      if(op==='*') return a * b;
+      if(op==='/') return b===0 ? NaN : a / b;
+      return b;
+    }
+
+    function setDisplayFrom(val){
+      if(!isFinite(val)){ display='エラー'; } else { display=String(val); }
+    }
+
+    function updatePreview(){
+      disp.textContent = formatNumber(display==='エラー'? 0 : display);
+      const val = (display==='エラー') ? 0 : Number(display)||0;
+      const r = Number(selectedRate)/100;
+      let net=val, tax=0, gross=val;
+      if(mode==='INCLUSIVE_TO_EXCLUSIVE'){ net = val/(1+r); tax = val - net; gross = val; }
+      if(mode==='EXCLUSIVE_TO_INCLUSIVE'){ tax = val*r; gross = val + tax; net = val; }
+      const rr = (v)=> formatNumber((Math.round(v*100)/100).toFixed(2));
+      modeRateText.textContent = `モード: ${mode==='INCLUSIVE_TO_EXCLUSIVE'?'税込→税抜':mode==='EXCLUSIVE_TO_INCLUSIVE'?'税抜→税込':'未指定'} / 税率: ${selectedRate}%`;
+      preview.textContent = (display==='エラー') ? '—' : `税抜: ${rr(net)} / 税額: ${rr(tax)} / 税込: ${rr(gross)}`;
+    }
+
+    // ---- Input ----
+    function pressDigit(ch){
+      if(display==='エラー'){ allClear(); }
+      if(afterEquals){ acc=null; pendingOp=null; exprParts=[]; afterEquals=false; lastBinaryOp=null; lastRightOperand=null; }
+      if(inputBuf==='0' && ch!=='.'){ inputBuf = ch; }
+      else if(ch==='.' && inputBuf.includes('.')){ /* noop */ }
+      else { inputBuf += ch; }
+      lastPressWasOp = false;
+      setDisplayFrom(inputBuf);
+      updateExprLine();
+      updatePreview();
+    }
+    function press00(){
+      if(display==='エラー'){ allClear(); }
+      if(afterEquals){ acc=null; pendingOp=null; exprParts=[]; afterEquals=false; lastBinaryOp=null; lastRightOperand=null; }
+      if(inputBuf!=='0'){ inputBuf += '00'; setDisplayFrom(inputBuf); }
+      lastPressWasOp = false;
+      updateExprLine(); updatePreview();
+    }
+
+    function clearEntry(){ inputBuf='0'; setDisplayFrom(inputBuf); updateExprLine(); updatePreview(); }
+    function allClear(){ acc=null; pendingOp=null; inputBuf='0'; exprParts=[]; lastPressWasOp=false; afterEquals=false; mode='NONE'; lastBinaryOp=null; lastRightOperand=null; setDisplayFrom('0'); updateExprLine(); updatePreview(); }
+
+    function pressOperator(op){
+      if(display==='エラー'){ allClear(); }
+      const cur = Number(inputBuf||'0');
+      if(afterEquals){
+        acc = Number(display)||0;
+        pendingOp = op;
+        exprParts=[String(acc), sym[op]];
+        inputBuf='0';
+        lastPressWasOp=true;
+        afterEquals=false;
+        updateExprLine();
+        updatePreview();
+        return;
+      }
+      if(acc===null){
+        acc = cur;
+        exprParts = [String(cur), sym[op]];
+        inputBuf = '0';
+      } else {
+        if(lastPressWasOp){
+          if(exprParts.length>0) exprParts[exprParts.length-1] = sym[op];
+        } else {
+          const useOp = pendingOp || op;
+          const res = applyOp(acc, cur, useOp);
+          setDisplayFrom(res);
+          lastBinaryOp = useOp;
+          lastRightOperand = cur;
+          acc = res;
+          exprParts = [String(acc), sym[op]];
+          inputBuf = '0';
+        }
+      }
+      pendingOp = op;
+      lastPressWasOp = true;
+      updateExprLine();
+      updatePreview();
+    }
+
+    function pressEquals(){
+      if(display==='エラー'){ allClear(); return; }
+      if(pendingOp!==null){
+        const cur = Number(inputBuf||'0');
+        const res = applyOp(acc, cur, pendingOp);
+        setDisplayFrom(res);
+        lastBinaryOp = pendingOp;
+        lastRightOperand = cur;
+        afterEquals = true;
+        pendingOp = null;
+        inputBuf = String(display);
+        exprParts = [String(display)];
+        updateExprLine(true, display);
+        updatePreview();
+        return;
+      }
+      if(afterEquals && lastBinaryOp!==null && lastRightOperand!==null){
+        const base = Number(display)||0;
+        const res = applyOp(base, lastRightOperand, lastBinaryOp);
+        setDisplayFrom(res);
+        inputBuf = String(display);
+        exprParts = [String(display)];
+        updateExprLine(true, display);
+        updatePreview();
+        return;
+      }
+      afterEquals = true;
+      updateExprLine(true, display);
+      updatePreview();
+    }
+
+    // ---- Wire keypad ----
+    document.querySelectorAll('[data-k]').forEach(btn=>btn.addEventListener('click', ()=>pressDigit(btn.getAttribute('data-k'))));
+    document.querySelectorAll('[data-op]').forEach(btn=>btn.addEventListener('click', ()=>pressOperator(btn.getAttribute('data-op'))));
+    document.getElementById('eq').onclick = pressEquals;
+    document.getElementById('k00').onclick = press00;
+    document.getElementById('c').onclick = clearEntry;
+    document.getElementById('ac').onclick = allClear;
+
+    // ---- Memory ----
+    document.getElementById('mplus').onclick = ()=>{ if(display!=='エラー'){ memory += (Number(display)||0); } };
+    document.getElementById('mminus').onclick = ()=>{ if(display!=='エラー'){ memory -= (Number(display)||0); } };
+    document.getElementById('mr').onclick = ()=>{ display=String(memory||0); inputBuf=display; updateExprLine(); updatePreview(); };
+    document.getElementById('mc').onclick = ()=>{ memory=0; };
+
+    // ---- Save ----
+    document.getElementById('save').onclick = ()=>{
+      if(display==='エラー'){ alert('計算エラーのため保存できません'); return; }
+      const val = Number(display)||0;
+      const r = Number(selectedRate)/100;
+      let net=val, tax=0, gross=val;
+      if(mode==='INCLUSIVE_TO_EXCLUSIVE'){ net = val/(1+r); tax = val - net; gross = val; }
+      if(mode==='EXCLUSIVE_TO_INCLUSIVE'){ tax = val*r; gross = val + tax; net = val; }
+      const rec = {
+        id: String(Date.now()), date: new Date().toISOString(),
+        category: (document.getElementById('category').value || '未分類'),
+        memo: (document.getElementById('memo').value || ''),
+        mode, taxRate: selectedRate,
+        net: Math.round(net*100)/100,
+        tax: Math.round(tax*100)/100,
+        gross: Math.round(gross*100)/100,
+        sourceAmount: val,
+        expr: exprEl.textContent || ''
+      };
+      history.unshift(rec);
+      LS.set(HISTORY_KEY, history);
+      document.getElementById('category').value='未分類';
+      document.getElementById('memo').value='';
+      alert('保存しました');
+    };
+
+    // ---- History actions ----
+    (function(){
+      const listEl = document.getElementById('historyList');
+      function render(list){
+        listEl.innerHTML='';
+        if(!list.length){
+          const p = document.createElement('p'); p.className='muted'; p.style.textAlign='center'; p.style.marginTop='24px'; p.textContent='履歴はまだありません';
+          listEl.appendChild(p); return;
+        }
+        list.forEach(item=>{
+          const div = document.createElement('div'); div.className='list-item';
+          const line0 = document.createElement('div'); line0.className='muted'; line0.textContent = item.expr || '';
+          const line1 = document.createElement('div'); line1.innerHTML = `<b>${item.category||'未分類'}</b> ・ ${formatNumber(item.gross)} ${settings.currency}（税込）`;
+          const line2 = document.createElement('div'); line2.className='muted'; line2.textContent = `${new Date(item.date).toLocaleString()} / ${item.mode==='INCLUSIVE_TO_EXCLUSIVE'?'税込→税抜':item.mode==='EXCLUSIVE_TO_INCLUSIVE'?'税抜→税込':'未指定'} / 税率${item.taxRate}%`;
+          const line3 = document.createElement('div'); line3.className='muted'; line3.textContent = `税抜 ${formatNumber(item.net)} / 税額 ${formatNumber(item.tax)} / 税込 ${formatNumber(item.gross)}`;
+          div.appendChild(line0); div.appendChild(line1); div.appendChild(line2); div.appendChild(line3);
+          if(item.memo){ const line4 = document.createElement('div'); line4.style.marginTop='6px'; line4.textContent = `備考: ${item.memo}`; div.appendChild(line4); }
+          listEl.appendChild(div);
+        });
+      }
+      // Export with BOM + CRLF, and reload from localStorage
+      document.getElementById('export').onclick = ()=>{
+        try{
+          const raw = localStorage.getItem(HISTORY_KEY);
+          const rowsData = raw ? JSON.parse(raw) : [];
+          if(!rowsData.length){ alert('履歴がありません'); return; }
+          const header = ['date','category','memo','mode','taxRate','net','tax','gross','expr'];
+          const esc = (s)=>{
+            const str = String(s==null?'':s);
+            return (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r'))
+              ? '"'+str.replace(/"/g,'""')+'"' : str;
+          };
+          const lines = [header.join(',')];
+          rowsData.forEach(h=>{
+            lines.push([h.date, esc(h.category||''), esc(h.memo||''), h.mode, h.taxRate, h.net, h.tax, h.gross, esc(h.expr||'')].join(','));
+          });
+          const csv = '\ufeff' + lines.join('\r\n'); // UTF-8 BOM + CRLF
+          const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const ts = new Date().toISOString().replace(/[:T]/g,'-').slice(0,16);
+          a.download = `bookkeeping-${ts}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }catch(e){
+          console.error(e);
+          alert('CSV出力でエラーが発生しました');
+        }
+      };
+      document.getElementById('clear').onclick = ()=>{
+        if(confirm('履歴を全削除しますか？')){ history=[]; LS.set(HISTORY_KEY, history); render(history); }
+      };
+      const searchEl = document.getElementById('search');
+      searchEl.oninput = ()=>{
+        const q = (searchEl.value||'').toLowerCase();
+        const filtered = !q ? history : history.filter(h =>
+          (h.category||'').toLowerCase().includes(q) ||
+          (h.memo||'').toLowerCase().includes(q) ||
+          String(h.net).includes(q) || String(h.gross).includes(q) ||
+          (h.expr||'').toLowerCase().includes(q)
+        );
+        render(filtered);
+      };
+      window.renderHistory = render;
+    })();
+
+    // ---- Rate buttons / Settings ----
+    function renderRateButtons(){
+      rateButtons.innerHTML = '';
+      settings.taxRates.forEach(r => {
+        const b1 = document.createElement('button'); b1.textContent = `${r}% 税込→抜`; b1.onclick = ()=>{
+          selectedRate=r; mode='INCLUSIVE_TO_EXCLUSIVE';
+          const base = Number(display)||0; const val = base/(1+(r/100));
+          setDisplayFrom(Math.round(val*100)/100); inputBuf = String(display);
+          updateExprLine(); updatePreview();
+        };
+        const b2 = document.createElement('button'); b2.textContent = `${r}% 税抜→込`; b2.onclick = ()=>{
+          selectedRate=r; mode='EXCLUSIVE_TO_INCLUSIVE';
+          const base = Number(display)||0; const val = base*(1+(r/100));
+          setDisplayFrom(Math.round(val*100)/100); inputBuf = String(display);
+          updateExprLine(); updatePreview();
+        };
+        rateButtons.appendChild(b1); rateButtons.appendChild(b2);
+      });
+    }
+    function renderSettings(){
+      roundingSel.value = settings.rounding || 'round';
+      currencyInp.value = settings.currency || '¥';
+      ratesArea.innerHTML='';
+      (settings.taxRates||[]).forEach((v,idx)=>{
+        const wrap = document.createElement('div'); wrap.className='row'; wrap.style.margin='6px 0';
+        const input = document.createElement('input'); input.type='number'; input.value=String(v); input.placeholder='10';
+        input.oninput = (e)=>{ settings.taxRates[idx] = Number(e.target.value||0); };
+        const del = document.createElement('button'); del.textContent='削除'; del.style="min-width:80px;border-radius:10px;border:0;background:#ef4444;color:#fff";
+        del.onclick = ()=>{ settings.taxRates.splice(idx,1); renderSettings(); };
+        wrap.appendChild(input); wrap.appendChild(del); ratesArea.appendChild(wrap);
+      });
+    }
+    document.getElementById('addRate').onclick = ()=>{ settings.taxRates.push(0); renderSettings(); };
+    document.getElementById('saveSettings').onclick = ()=>{
+      settings.rounding = roundingSel.value;
+      settings.currency = currencyInp.value || '¥';
+      settings.taxRates = settings.taxRates.filter(n=>Number(n)>=0 && Number(n)<=100).map(n=>Number(n)||0).slice(0,4);
+      LS.set(SETTINGS_KEY, settings);
+      renderRateButtons(); updatePreview();
+      alert('設定を保存しました');
+    };
+
+    // ---- Tabs ----
+    function setTab(t){
+      [tabCalc,tabHistory,tabSettings].forEach(b=>b.classList.remove('active'));
+      [viewCalc,viewHistory,viewSettings].forEach(v=>v.classList.add('hidden'));
+      if(t==='calc'){ tabCalc.classList.add('active'); viewCalc.classList.remove('hidden'); updateExprLine(); }
+      if(t==='history'){ tabHistory.classList.add('active'); viewHistory.classList.remove('hidden'); window.renderHistory(history); }
+      if(t==='settings'){ tabSettings.classList.add('active'); viewSettings.classList.remove('hidden'); renderSettings(); }
+    }
+    tabCalc.onclick = ()=>setTab('calc'); tabHistory.onclick = ()=>setTab('history'); tabSettings.onclick = ()=>setTab('settings');
+
+    // ---- PWA SW ----
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+    }
+
+    // ---- Init ----
+    function init(){ allClear(); renderRateButtons(); renderSettings(); setTab('calc'); }
+    init();
+  </script>
+</body>
+</html>
